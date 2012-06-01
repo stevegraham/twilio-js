@@ -52,6 +52,5 @@ Resources that can be removed via the API, using the HTTP DELETE verb can be don
 Twilio.Notification.all(function(err, res) {
   res.forEach(function(obj,i,arr) { obj.destroy() }
 }
-</pre>
 
 
