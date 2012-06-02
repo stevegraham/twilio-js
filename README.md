@@ -52,6 +52,7 @@ Resources that can be removed via the API, using the HTTP DELETE verb can be don
 Twilio.Notification.all(function(err, res) {
   res.forEach(function(obj,i,arr) { obj.destroy() }
 }
+```
 
 The object representations yielded to the callback functions have properties that correspond to those of the resource. The Twilio API documentation itself is the canonical reference for which resources have what properties, and which of those can be updated by the API. Please refer to the Twilio REST API documentation for thos information.
 
