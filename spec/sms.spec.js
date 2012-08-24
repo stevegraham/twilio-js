@@ -43,33 +43,31 @@ describe('Twilio.SMS', function() {
         });
       });
     });
-
-
   });
 
   describe('.find', function() {
     var api = mock({
-        resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
-        method:     'get',
-        fixture:    'sms_created'
-      });
+      resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
+      method:     'get',
+      fixture:    'sms_created'
+    });
 
     it('returns an object representation of the API response', function(done) {
       Twilio.SMS.find('SM90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
-          expect(err).toEqual(null);
-          expect(res).toEqual(api.response);
-          api.done();
-          done()
-        });
+        expect(err).toEqual(null);
+        expect(res).toEqual(api.response);
+        api.done();
+        done()
+      });
     })
   });
 
   describe('.all', function() {
     var api = mock({
-        resource:   'SMS/Messages',
-        method:     'get',
-        fixture:    'list_messages'
-      });
+      resource:   'SMS/Messages',
+      method:     'get',
+      fixture:    'list_messages'
+    });
 
     it('returns informations about how many sms messages there are including an array of messages', function(done) {
       Twilio.SMS.all(function(err, res) {
