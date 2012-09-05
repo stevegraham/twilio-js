@@ -1,0 +1,23 @@
+{
+  "name": "twilio-js",
+  "description": "The Twilio API and TwiML for node.js",
+  "version": "0.0.1",
+  "author": "Stevie Graham <sjtgraham@mac.com> (https://github.com/stevegraham)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/stevegraham/twilio-js.git"
+  },
+  "keywords": [
+    "twilio",
+    "twiml"
+  ],
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "node-jasmine spec/"
+  },
+  "engines": {
+    "node": ">= 0.6.0"
+  },
+  "dependencies": {},
+  "homepage": "http://github.com/stevegraham/twilio-js"
+}

@@ -13,13 +13,13 @@ describe('Twilio.SMS', function() {
         method:     'post',
         fixture:    'sms_created',
         statusCode: 201,
-        body: { To: "+12125551234", From: "+16465550000", Body: "OMG! Awesome!" }
+        body: {"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}
       });
 
       it('returns an object representation of the API response', function(done) {
-        Twilio.SMS.create({ to: "+12125551234", from: "+16465550000", body: "OMG! Awesome!" }, function(err, res) {
+        Twilio.SMS.create({"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}, function(err, res) {
           expect(err).toEqual(null);
-          expect(res).toEqual(api.response);
+          for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
           api.done();
           done()
         });
@@ -55,7 +55,7 @@ describe('Twilio.SMS', function() {
     it('returns an object representation of the API response', function(done) {
       Twilio.SMS.find('SM90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         expect(err).toEqual(null);
-        expect(res).toEqual(api.response);
+        for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
         api.done();
         done()
       });
@@ -63,16 +63,30 @@ describe('Twilio.SMS', function() {
   });
 
   describe('.all', function() {
-    var api = mock({
-      resource:   'SMS/Messages',
-      method:     'get',
-      fixture:    'list_messages'
-    });
+    var api;
+
+    beforeEach(function() {
+      api = mock({
+        resource:   'SMS/Messages',
+        method:     'get',
+        fixture:    'list_messages'
+      });
+    })
 
     it('returns informations about how many sms messages there are including an array of messages', function(done) {
       Twilio.SMS.all(function(err, res) {
         expect(err).toEqual(null);
-        expect(res).toEqual(api.response);
+        for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
+        api.done();
+        done()
+      });
+    })
+
+    it('returns an array of ResourceInstances in sms_messages', function(done) {
+      Twilio.SMS.all(function(err, res) {
+        res.smsMessages.forEach(function(res, i) {
+          for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response.smsMessages[i][prop]) }
+        })
         api.done();
         done()
       });
