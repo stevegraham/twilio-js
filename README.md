@@ -36,13 +36,19 @@ TODO: Raise specific error if API related functions called before account creden
 
 Twilio resources are represented as JavaScript object, e.g. `Twilio.SMS` and operations on those resources are performed via functions that are properties of those objects, e.g. `Twilio.SMS.create`
 
+Functions representing list resources have three functions: .all, .find, create, for finding resource instances that match certain conditions, a specific resource instance identified by a SID, and for creating a new instance resource if the list resource supports that.
+
 Resources that can be created via the API, using the HTTP POST verb can be done so in the library using the `.create` function, e.g.
 
 ```javascript
+// Method signature Twilio.Call.find(options, callbackFunction, options);
+// example options, e.g. using a Twilio connect account : { accountSid: SIDneyPoiter, connect: true }
+// The options hash is a mandatory argument so it is the first argument.
 Twilio.Call.create({to: "+12125551234", from: "+16465551234", url: "http://example.com/voice"}, function(err,res) {
-  // Your code
+  console.log('HOLY MOLY! PHONES ARE RINGING');
 })
 ```
+
 When a response is received from the API, the supplied callback function is invoked with an object representation of the resource passed in as the `res` argument as illustrated here. In the case of an error level response, an `Error` object will passed in as the `err` argument.
 
 Resources that can be removed via the API, using the HTTP DELETE verb can be done so in the library using the `destroy` function on the resource object representation, e.g.
@@ -50,8 +56,11 @@ Resources that can be removed via the API, using the HTTP DELETE verb can be don
 ```javascript
 // Delete all log entries
 Twilio.Notification.all(function(err, res) {
-  res.forEach(function(obj,i,arr) { obj.destroy() }
-}
+  res.forEach(function(obj,i,arr) { obj.destroy(function(err, res) {
+      console.log('notification', res.sid, 'destroyed')
+    })
+  })
+})
 ```
 
 The object representations yielded to the callback functions have properties that correspond to those of the resource. The Twilio API documentation itself is the canonical reference for which resources have what properties, and which of those can be updated by the API. Please refer to the Twilio REST API documentation for thos information.
@@ -61,7 +70,15 @@ The object representations yielded to the callback functions have properties tha
 Resource instances can be accessed ad hoc passsing the resource sid to the `.find` class method on the resource class, e.g.
 
 ```javascript
-Twilio.Call.find('CAe1644a7eed5088b159577c5802d8be38', function(err, res) {})
+// Method signature Twilio.Call.find(resourceSid, callbackFunction, options);
+// example options, e.g. using a Twilio connect account : { accountSid: SIDneyPoiter, connect: true }
+// The options hash is an optional argument and may not always be used so it is the last argument.
+Twilio.Call.find('CAe1644a7eed5088b159577c5802d8be38', function(err, res) {
+  console.log('notification: --------');
+  for(var prop in res) {
+    if(res.hasOwnProperty(prop)) console.log(prop, ':', res[prop]);
+  }
+});
 ```
 
 This will yield an object with propertes corresponding to the attributes of the resource. The properties are camel-cased.
@@ -71,36 +88,45 @@ This will yield an object with propertes corresponding to the attributes of the 
 List resources can be accessed ad hoc by calling the `.all` class method on the resource class, e.g.
 
 ```javascript
-Twilio.Call.all(function(err, res) {})
+// Method signature Twilio.Call.all(callbackFunction, options);
+// example options, e.g. using a Twilio connect account : { accountSid: SIDneyPoiter, connect: true }
+// The options hash is an optional argument and may not always be used so it is the last argument.
+Twilio.Call.all(function(err, res) {
+  console.log('call: --------');
+  for(var prop in res) {
+    if(res.hasOwnProperty(prop)) console.log(prop, ':', res[prop]);
+  }
+});
+
 ```
 
 This will return a collection of objects, each a representation of the corresponding resource.
 
-### Using filter parameters to refine a query
-
-The `.all` function will ask Twilio for all resource instances on that list resource, this can easily result in a useless response if there are numerous resource instances on a given resource. The `.all` class method accepts an optional object of options for parameters to filter the response, e.g.
-
+.all can also optionally take an options object as the last argument e.g., to find all calls from +12125551234 on the Twilio Connect subaccount 'SIDneyPoiter'
 ```javascript
-Twilio.Call.all({ from: "+12125550000" }, function(err, res) {})
+Twilio.Call.all(function(err, res) {
+  console.log('call: --------');
+  for(var prop in res) {
+    if(res.hasOwnProperty(prop)) console.log(prop, ':', res[prop]);
+  }
+}, { accountSid: 'SIDneyPoiter', connect: true, from: '+12125551234' );
+
 ```
-
-Twilio does some fancy stuff to implement date ranges, consider the API request:
-
-<pre>GET /2010-04-01/Accounts/AC5ef87.../Calls?StartTime&gt;=2009-07-06&EndTime&lt;=2009-07-10</pre>
-
-This will return all calls started after midnight January 01st 2012 and completed before July 10th 2009. To make the same reqest using this library:
-
-```javascript
-Twilio.Call.all({ startedBefore: "2012-12-01" }, function(err, res) {})
-```
+The options hash is an optional argument and may not always be used so it is the last argument.
 
 ### Pagination
 
 The Twilio API paginates API responses and by default it will return 30 objects in one response, this can be overridden to return up to a maximum of 1000 per response using the `:page_size` option, If more than 1000 resources instances exist, the `:page` option is available, e.g.
 
 ```javascript
-Twilio.Call.all({ pageSize: 1000, page: 7 }, function(err, res) {})
+Twilio.Call.all(function(err, res) {
+  console.log('call: --------');
+  for(var prop in res) {
+    if(res.hasOwnProperty(prop)) console.log(prop, ':', res[prop]);
+  }
+}, { pageSize: 1000, page: 7 })
 ```
+
 ## Updating resource attributes
 
 Certain resources have attributes that can be updated with the REST API. Instances of those resources can be updated by changing the properties on the response object and calling the save function.
@@ -109,7 +135,9 @@ Certain resources have attributes that can be updated with the REST API. Instanc
 Twilio.Call.all({ status: 'in-progress' }, function(err, res) {
   var call = res[0]
   call.url = 'http://example.com/in_ur_apiz_hijackin_ur_callz.xml'
-  call.save() // TODO: is there a case for this to accept a callback function?
+  call.save(function(err, res) {
+    console.log('saved!');
+  })
 })
 ```
 # Twilio Client
@@ -118,8 +146,8 @@ To generate capability tokens for use with Twilio Client you can use `Twilio::Ca
 
 ```javascript
 Twilio.CapabilityToken.create({
-  allow_incoming: 'unique_identifier_for_this_user',
-  allow_outgoing: 'your_application_sid'
+  allowIncoming: 'unique_identifier_for_this_user',
+  allowOutgoing: 'your_application_sid'
 })
 ```
 
@@ -127,10 +155,10 @@ You can create capability tokens on arbitrary accounts, e.g. subaccounts. Just p
 
 ```javascript
 Twilio.CapabilityToken.create({
-  account_sid:    'AC00000000000000000000000',
-  auth_token:     'XXXXXXXXXXXXXXXXXXXXXXXXX',
-  allow_incoming: 'unique_identifier_for_this_user',
-  allow_outgoing: 'your_application_sid'
+  accountSid:    'AC00000000000000000000000',
+  authToken:     'XXXXXXXXXXXXXXXXXXXXXXXXX',
+  allowIncoming: 'unique_identifier_for_this_user',
+  allowOutgoing: 'your_application_sid'
 })
 ```
 
@@ -144,8 +172,8 @@ By default tokens expire exactly one hour from the time they are generated. You 
 
 ```javascript
 Twilio.CapabilityToken.create({
-  allow_incoming: 'unique_identifier_for_this_user',
-  allow_outgoing: 'your_application_sid',
+  allowIncoming: 'unique_identifier_for_this_user',
+  allowOutgoing: 'your_application_sid',
   expires:        // TODO: how to denote time. ISO or epoch?
 })
 ```
@@ -158,7 +186,7 @@ With Twilio Connect you can attribute Twilio usage to accounts of customers that
 Twilio::SMS.create({
   to: '+12125551234', from: '+6165550000',
   body: 'this will not be billed to the application developer',
-  account_sid: CONNECT_ACCOUNT_SID, connect: true
+  accountSid: CONNECT_ACCOUNT_SID, connect: true
 })
 ```
 
@@ -178,7 +206,7 @@ There are three ways to perform an operation on an account other than the master
 Twilio::SMS.create({
   to: '+12125551234', from: '+6165550000',
   body:  'This will be billed to a subaccount, sucka!',
-  account_sid: 'ACXXXXXXXXXXXXXXXXXXXXXXXX'
+  accountSid: 'ACXXXXXXXXXXXXXXXXXXXXXXXX'
 })
 ```
 
@@ -221,3 +249,6 @@ Therefore emits the following TwiML document:
 &lt;/Response&gt;
 </pre>
 
+&copy; 2012 Stevie Graham
+
+The author asserts the moral right to be identified as the author of this work.
