@@ -114,7 +114,7 @@ The options hash is an optional argument and may not always be used so it is the
 
 ### Pagination
 
-The Twilio API paginates API responses and by default it will return 30 objects in one response, this can be overridden to return up to a maximum of 1000 per response using the `:page_size` option, If more than 1000 resources instances exist, the `:page` option is available, e.g.
+The Twilio API paginates API responses and by default it will return 30 objects in one response, this can be overridden to return up to a maximum of 1000 per response using the `:pageSize` option, If more than 1000 resources instances exist, the `page` option is available, e.g.
 
 ```javascript
 Twilio.Call.all(function(err, res) {
@@ -140,7 +140,7 @@ Twilio.Call.all({ status: 'in-progress' }, function(err, res) {
 ```
 # Twilio Client
 
-To generate capability tokens for use with Twilio Client you can use `Twilio::CapabilityToken.create`
+To generate capability tokens for use with Twilio Client you can use `Twilio.CapabilityToken.create`
 
 ```javascript
 Twilio.CapabilityToken.create({
@@ -163,7 +163,7 @@ Twilio.CapabilityToken.create({
 You can also pass arbitrary parameters into your outgoing privilege, these are sent from Twilio as HTTP request params when it hits your app endpoint for TwiML.
 
 ```javascript
-Twilio.CapabilityToken.create({allow_outgoing: ['your_application_sid', { foo: 'bar' }]}]
+Twilio.CapabilityToken.create({allowOutgoing: ['your_application_sid', { foo: 'bar' }]}]
 ```
 
 By default tokens expire exactly one hour from the time they are generated. You can choose your own token ttl like so:
@@ -178,7 +178,7 @@ Twilio.CapabilityToken.create({
 
 # Twilio Connect
 
-With Twilio Connect you can attribute Twilio usage to accounts of customers that have authorised you to perform API calls on there behalf. twilio-rb supports Twilio Connect. To make an API call using a Twilio Connect account, two extra parameters are required, `account_sid` and `connect`
+With Twilio Connect you can attribute Twilio usage to accounts of customers that have authorised you to perform API calls on there behalf. twilio-js supports Twilio Connect. To make an API call using a Twilio Connect account, two extra parameters are required, `accountSid` and `connect`
 
 ```javascript
 Twilio::SMS.create({
