@@ -4,7 +4,7 @@ var mock    = require('./helpers/mock.js');
 Twilio.AccountSid = mock.AccountSid = "SIDneyPoiter";
 Twilio.AuthToken  = mock.AuthToken  = "secret";
 
-describe('Twilio.Call', function() {
+describe('Twilio.Application', function() {
   var api;
 
   describe('.create', function() {
@@ -13,28 +13,28 @@ describe('Twilio.Call', function() {
       api = mock({
         accountSid: 'AC0000000000000000000000000000',
         connect:    true,
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'post',
-        fixture:    'connect_call_created',
+        fixture:    'connect_application',
         statusCode: 201,
-        body: {"To":"+12125551234","From":"+16465550000","Url":"http://example.com/voice.twiml"}
+        body: {"FriendlyName":"bob"}
       });
 
-      Twilio.Call.create({"to":"+12125551234","from":"+16465550000","url":"http://example.com/voice.twiml","accountSid":"AC0000000000000000000000000000","connect":true}, function(err, res) {
+      Twilio.Application.create({"friendlyName":"bob","accountSid":"AC0000000000000000000000000000","connect":true}, function(err, res) {
         var instanceMock = mock({
           chainTo:    api,
           accountSid: res.accountSid,
           connect:    true,
           uri:        res.uri,
           method:     'post',
-          fixture:    'connect_call_created',
+          fixture:    'connect_application',
           statusCode: 200,
-          body: {"Url":"foo","Method":"foo","Status":"foo"}
+          body: {"FriendlyName":"foo","ApiVersion":"foo","VoiceUrl":"foo","VoiceMethod":"foo","VoiceFallbackUrl":"foo","VoiceFallbackMethod":"foo","StatusCallback":"foo","StatusCallbackMethod":"foo","VoiceCallerIdLookup":"foo","VoiceApplicationSid":"foo","SmsUrl":"foo","SmsMethod":"foo","SmsFallbackUrl":"foo","SmsFallbackMethod":"foo","SmsStatusCallback":"foo"}
         });
 
         // twilio connect uses a different accountSID for auth. We want to ensure we
         // use the correct sid for updating resources
-        ["url", "method", "status"].forEach(function(el) { res[el] = 'foo' });
+        ["friendlyName", "apiVersion", "voiceUrl", "voiceMethod", "voiceFallbackUrl", "voiceFallbackMethod", "statusCallback", "statusCallbackMethod", "voiceCallerIdLookup", "voiceApplicationSid", "smsUrl", "smsMethod", "smsFallbackUrl", "smsFallbackMethod", "smsStatusCallback"].forEach(function(el) { res[el] = 'foo' });
 
         res.save(function(err, res) {
           api.done();
@@ -46,60 +46,89 @@ describe('Twilio.Call', function() {
     it('can use a subaccount', function(done) {
       api = mock({
         accountSid: 'AC0000000000000000000000000000',
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'post',
-        fixture:    'call_created',
+        fixture:    'application',
         statusCode: 201,
-        body: {"To":"+12125551234","From":"+16465550000","Url":"http://example.com/voice.twiml"}
+        body: {"FriendlyName":"bob"}
       });
 
-      Twilio.Call.create({"to":"+12125551234","from":"+16465550000","url":"http://example.com/voice.twiml","accountSid":"AC0000000000000000000000000000"}, function(err, res) {
+      Twilio.Application.create({"friendlyName":"bob","accountSid":"AC0000000000000000000000000000"}, function(err, res) {
         api.done();
         done();
       });
     });
 
-    describe('on successfully creating a Calls resource', function() {
+    describe('on successfully creating a Applications resource', function() {
       var api;
 
       it('returns an object representation of the API response', function(done) {
         api = mock({
-          resource:   'Calls',
+          resource:   'Applications',
           method:     'post',
-          fixture:    'call_created',
+          fixture:    'application',
           statusCode: 201,
-          body: {"To":"+12125551234","From":"+16465550000","Url":"http://example.com/voice.twiml"}
+          body: {"FriendlyName":"bob"}
         });
 
-        Twilio.Call.create({"to":"+12125551234","from":"+16465550000","url":"http://example.com/voice.twiml"}, function(err, res) {
+        Twilio.Application.create({"friendlyName":"bob"}, function(err, res) {
           expect(err).toEqual(null);
           for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
           api.done();
           done()
         });
       });
+      describe('the object it returns', function() {
+        describe('destroy()', function() {
+
+          it('deletes the given resource', function(done) {
+            api = mock({
+              resource:   'Applications',
+              method:     'post',
+              fixture:    'call_created',
+              statusCode: 201,
+              body: {"FriendlyName":"bob"}
+            });
+            Twilio.Application.create({"FriendlyName":"bob"}, function(err, res) {
+              var instanceMock = mock({
+                chainTo:    api,
+                uri:        res.uri,
+                method:     'delete',
+                fixture:    'call_created',
+                statusCode: 200,
+                body: {"Url":"foo","Method":"foo","Status":"foo"}
+              });
+
+              res.destroy(function(err, res) {
+                api.done();
+                done()
+              });
+            });
+          });
+        });
+      });
 
       describe('the object it returns', function() {
         it('has setters corresponding to the mutable properties of the resource the object represents, that update the resource when .save() is called.', function(done) {
           api = mock({
-            resource:   'Calls',
+            resource:   'Applications',
             method:     'post',
-            fixture:    'call_created',
+            fixture:    'application',
             statusCode: 201,
-            body: {"To":"+12125551234","From":"+16465550000","Url":"http://example.com/voice.twiml"}
+            body: {"FriendlyName":"bob"}
           });
-          Twilio.Call.create({"to":"+12125551234","from":"+16465550000","url":"http://example.com/voice.twiml"}, function(err, res) {
+          Twilio.Application.create({"friendlyName":"bob"}, function(err, res) {
             // Assert a POST is made to the resource URI with the given parameters
             var instanceMock = mock({
               chainTo:    api,
               uri:        res.uri,
               method:     'post',
-              fixture:    'call_created',
+              fixture:    'application',
               statusCode: 200,
-              body: {"Url":"foo","Method":"foo","Status":"foo"}
+              body: {"FriendlyName":"foo","ApiVersion":"foo","VoiceUrl":"foo","VoiceMethod":"foo","VoiceFallbackUrl":"foo","VoiceFallbackMethod":"foo","StatusCallback":"foo","StatusCallbackMethod":"foo","VoiceCallerIdLookup":"foo","VoiceApplicationSid":"foo","SmsUrl":"foo","SmsMethod":"foo","SmsFallbackUrl":"foo","SmsFallbackMethod":"foo","SmsStatusCallback":"foo"}
             });
 
-            ["url", "method", "status"].forEach(function(el) { res[el] = 'foo' });
+            ["friendlyName", "apiVersion", "voiceUrl", "voiceMethod", "voiceFallbackUrl", "voiceFallbackMethod", "statusCallback", "statusCallbackMethod", "voiceCallerIdLookup", "voiceApplicationSid", "smsUrl", "smsMethod", "smsFallbackUrl", "smsFallbackMethod", "smsStatusCallback"].forEach(function(el) { res[el] = 'foo' });
             res.save(function() {
               api.done();
               done();
@@ -109,16 +138,16 @@ describe('Twilio.Call', function() {
       });
     });
 
-    describe('on unsuccessfully creating a Calls resource', function() {
+    describe('on unsuccessfully creating a Applications resource', function() {
       var api = mock({
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'post',
         fixture:    'api_error',
         statusCode: 422
       });
 
       it('should return an error object', function(done) {
-        Twilio.Call.create({}, function(err, res) {
+        Twilio.Application.create({}, function(err, res) {
           expect(err).toEqual(new Error(api.response.message));
           expect(res).toEqual(null);
           api.done();
@@ -134,12 +163,12 @@ describe('Twilio.Call', function() {
       api = mock({
         accountSid: 'subaccount',
         connect:    true,
-        resource:   'Calls/CA90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   'Applications/AP90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
-        fixture:    'call_created'
+        fixture:    'application'
       });
 
-      Twilio.Call.find('CA90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.Application.find('AP90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount', connect: true });
@@ -148,12 +177,12 @@ describe('Twilio.Call', function() {
     it('can use a subaccount', function(done) {
       api = mock({
         accountSid: 'subaccount',
-        resource:   'Calls/CA90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   'Applications/AP90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
-        fixture:    'call_created'
+        fixture:    'application'
       });
 
-      Twilio.Call.find('CA90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.Application.find('AP90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount' });
@@ -162,12 +191,12 @@ describe('Twilio.Call', function() {
 
     it('returns an object representation of the API response', function(done) {
       api = mock({
-        resource:   'Calls/CA90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   'Applications/AP90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
-        fixture:    'call_created'
+        fixture:    'application'
       });
 
-      Twilio.Call.find('CA90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.Application.find('AP90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
         api.done();
@@ -183,12 +212,12 @@ describe('Twilio.Call', function() {
       api = mock({
         accountSid: 'subaccount',
         connect:    true,
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'get',
-        fixture:    'list_calls'
+        fixture:    'list_applications'
       });
 
-      Twilio.Call.all(function(err, res) {
+      Twilio.Application.all(function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount', connect: true });
@@ -197,12 +226,12 @@ describe('Twilio.Call', function() {
     it('can use a subaccount', function(done) {
       api = mock({
         accountSid: 'subaccount',
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'get',
-        fixture:    'list_calls'
+        fixture:    'list_applications'
       });
 
-      Twilio.Call.all(function(err, res) {
+      Twilio.Application.all(function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount' });
@@ -210,13 +239,13 @@ describe('Twilio.Call', function() {
 
     it('accepts filter paramters for a more specific query', function(done) {
       api = mock({
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'get',
-        fixture:    'list_calls',
+        fixture:    'list_applications',
         body:       { From: '+12125551234' }
       });
 
-      Twilio.Call.all(function(err, res) {
+      Twilio.Application.all(function(err, res) {
         api.done();
         done()
       }, { from: '+12125551234' });
@@ -224,41 +253,18 @@ describe('Twilio.Call', function() {
 
     it('returns informations about how many resources there are including an array of resource instances', function(done) {
       api = mock({
-        resource:   'Calls',
+        resource:   'Applications',
         method:     'get',
-        fixture:    'list_calls'
+        fixture:    'list_applications'
       });
 
-      Twilio.Call.all(function(err, res) {
+      Twilio.Application.all(function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
         api.done();
         done()
       });
     })
-  });
-    describe('accessing subresources', function() {
-    it('can access subresources using a function with a name corresponding to the subresource name', function(done) {
-      api = mock({
-        resource:   'Calls/CA90c6fc909d8504d45ecdb3a3d5b3556e',
-        method:     'get',
-        fixture:    'call_created'
-      });
-
-      Twilio.Call.find('CA90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
-        mock({
-          chainTo:    api,
-          uri:        res.subresourceUris[Object.keys(res.subresourceUris)[0]],
-          method:     'get',
-          fixture:    'list_' + Object.keys(res.subresourceUris)[0]
-        });
-
-        res[Object.keys(res.subresourceUris)[0]](function(err, res) {
-          api.done();
-          done();
-        });
-      });
-    });
   });
 });
 

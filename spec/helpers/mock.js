@@ -39,7 +39,6 @@ module.exports = (function() {
     var authHeader = new Buffer(authSid + ':' + authToken).toString('base64');
 
     var api = nock.matchHeader('accept', 'application/json').
-      matchHeader('accept', 'application/json').
       matchHeader('Authorization', 'Basic ' + authHeader)
 
     switch(opts.method) {
@@ -58,7 +57,7 @@ module.exports = (function() {
         break;
     }
 
-    api = api.reply(statusCode, response);//.log(console.log);
+    api = api.reply(statusCode, response);
     api.response = response;
 
     return api;

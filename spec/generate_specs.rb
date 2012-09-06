@@ -1,15 +1,17 @@
 require 'json'
 require 'active_support/core_ext/string'
+require 'active_support/inflector'
 
 resources = {
   sms: {
     module_name:            'SMS',
     mutable_attributes:     [],
-    resource:               'SMS/Messages',
+    special_case:           'SMS/Messages',
     individual_fixture:     'sms_created',
     list_fixture:           'list_messages',
     params:                 { To: "+12125551234", From: "+16465550000", Body: "OMG! Awesome!" },
-    sid_prefix:             'SM'
+    sid_prefix:             'SM',
+    persistable:            true
   },
 
   calls: {
@@ -18,16 +20,116 @@ resources = {
     list_fixture:           'list_calls',
     params:                 { To: "+12125551234", From: "+16465550000", Url: "http://example.com/voice.twiml" },
     sid_prefix:             'CA',
+    subresources:           true,
+    persistable:            true
+  },
+
+  outgoing_caller_ids: {
+    mutable_attributes:     ['FriendlyName'],
+    individual_fixture:     'caller_id',
+    list_fixture:           'list_caller_ids',
+    params:                 { PhoneNumber: '+12125551234' },
+    sid_prefix:             'PN',
+    persistable:            true,
+    deletable:              true
+  },
+
+  incoming_phone_numbers: {
+    mutable_attributes:     ["FriendlyName", "ApiVersion", "VoiceUrl", "VoiceMethod", "VoiceFallbackUrl",
+          "VoiceFallbackMethod", "StatusCallback", "StatusCallbackMethod", "VoiceCallerIdLookup",
+          "VoiceApplicationSid", "SmsUrl", "SmsMethod", "SmsFallbackUrl", "SmsFallbackMethod",
+          "SmsApplicationSid"],
+
+    individual_fixture:     'incoming_phone_number',
+    list_fixture:           'list_incoming_phone_numbers',
+    params:                 { PhoneNumber: '+12125551234' },
+    sid_prefix:             'PN',
+    persistable:            true,
+    deletable:              true
+  },
+
+  applications: {
+    mutable_attributes:     ["FriendlyName", "ApiVersion", "VoiceUrl", "VoiceMethod", "VoiceFallbackUrl",
+          "VoiceFallbackMethod", "StatusCallback", "StatusCallbackMethod", "VoiceCallerIdLookup",
+          "VoiceApplicationSid", "SmsUrl", "SmsMethod", "SmsFallbackUrl", "SmsFallbackMethod",
+          "SmsStatusCallback"],
+
+    individual_fixture:     'application',
+    list_fixture:           'list_applications',
+    params:                 { FriendlyName: 'bob' },
+    sid_prefix:             'AP',
+    persistable:            true,
+    deletable:              true
+  },
+
+  connect_apps: {
+    mutable_attributes:     ["FriendlyName", "AuthorizeRedirectUrl", "DeauthorizeCallbackUrl", "DeauthorizeCallbackMethod",
+                             "Permissions", "Description", "CompanyName", "HomepageUrl"],
+
+    individual_fixture:     'connect_app',
+    list_fixture:           'list_connect_apps',
+    sid_prefix:             'CN',
+    persistable:            false,
+  },
+
+  authorized_connect_apps: {
+    individual_fixture:     'authorized_connect_app',
+    list_fixture:           'list_authorized_connect_apps',
+    sid_prefix:             'CN',
+    persistable:            false,
+  },
+
+  conferences: {
+    individual_fixture:     'conference',
+    list_fixture:           'list_conferences',
+    sid_prefix:             'CF',
+    persistable:            false,
     subresources:           true
+  },
+
+  queues: {
+    mutable_attributes:     ['FriendlyName', 'MaxSize'],
+    individual_fixture:     'queue',
+    list_fixture:           'list_queues',
+    params:                 { FriendlyName: 'bob', MaxSize: 'Infinity' },
+    sid_prefix:             'QU',
+    # subresources:           true, BUG. hypermedia links not present in queue.
+    persistable:            true,
+    deletable:              true
+  },
+
+  notifications: {
+    individual_fixture:     'notification',
+    list_fixture:           'list_notifications',
+    sid_prefix:             'NO',
+    deletable:              true
+  },
+
+  transcriptions: {
+    individual_fixture:     'transcription',
+    list_fixture:           'list_transcriptions',
+    sid_prefix:             'TR'
   }
+
 }
 
 resources.each do |resource, opts|
+  output = ''
   opts[:resource] ||= resource.capitalize
 
-  resource = opts[:module_name] || resource.to_s.classify
-  params = opts[:params].to_json
-  downcase_params = Hash[opts[:params].map { |k,v| [k.camelize, v] }]
+  resource = opts[:special_case] || resource.to_s.camelize
+  constant = opts[:module_name] || resource.to_s.camelize.singularize
+
+  if opts[:params]
+    params = opts[:params].to_json
+    downcase_params   = Hash[opts[:params].map { |k,v| [k.to_s.camelize(:lower), v] }]
+    subaccount_params = downcase_params.merge accountSid: 'AC0000000000000000000000000000'
+    connect_params    = subaccount_params.merge connect: true
+  end
+
+  downcase_params   = downcase_params.to_json
+  subaccount_params = subaccount_params.to_json
+  connect_params    = connect_params.to_json
 
   output << <<EOF
 var Twilio  = require('../lib/twilio.js');
@@ -36,7 +138,8 @@ var mock    = require('./helpers/mock.js');
 Twilio.AccountSid = mock.AccountSid = "SIDneyPoiter";
 Twilio.AuthToken  = mock.AuthToken  = "secret";
 
-describe('Twilio.#{resource}', function() {
+describe('Twilio.#{constant}', function() {
+  var api;
 
 EOF
 
@@ -49,14 +152,14 @@ if opts[:persistable]
       api = mock({
         accountSid: 'AC0000000000000000000000000000',
         connect:    true,
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'post',
         fixture:    'connect_#{opts[:individual_fixture]}',
         statusCode: 201,
         body: #{params}
       });
 
-      Twilio.#{resource}.create(#{downcase_params}, function(err, res) {
+      Twilio.#{constant}.create(#{connect_params}, function(err, res) {
         var instanceMock = mock({
           chainTo:    api,
           accountSid: res.accountSid,
@@ -70,7 +173,7 @@ if opts[:persistable]
 
         // twilio connect uses a different accountSID for auth. We want to ensure we
         // use the correct sid for updating resources
-        #{opts[:mutable_attributes].map &:camelize}.forEach(function(el) { res[el] = 'foo' });
+        #{opts[:mutable_attributes].map { |s| s.camelize :lower }}.forEach(function(el) { res[el] = 'foo' });
 
         res.save(function(err, res) {
           api.done();
@@ -81,31 +184,33 @@ if opts[:persistable]
 
     it('can use a subaccount', function(done) {
       api = mock({
-        accountSid: 'subaccount',
-        resource:   '#{opts[:resource]}',
-        method:     'post',
-        fixture:    '#{opts[:individual_fixture]}',
-        statusCode: 201,
-        body: params
-      });
-
-      Twilio.Call.create(#{downcase_params}, function(err, res) {
-        api.done();
-        done();
-      });
-    });
-
-    describe('on successfully creating a #{resource} resource', function() {
-      var api = mock({
-        resource:   '#{opts[:resource]}',
+        accountSid: 'AC0000000000000000000000000000',
+        resource:   '#{resource}',
         method:     'post',
         fixture:    '#{opts[:individual_fixture]}',
         statusCode: 201,
         body: #{params}
       });
 
+      Twilio.#{constant}.create(#{subaccount_params}, function(err, res) {
+        api.done();
+        done();
+      });
+    });
+
+    describe('on successfully creating a #{resource} resource', function() {
+      var api;
+
       it('returns an object representation of the API response', function(done) {
-        Twilio.#{resource}.create(#{params}, function(err, res) {
+        api = mock({
+          resource:   '#{resource}',
+          method:     'post',
+          fixture:    '#{opts[:individual_fixture]}',
+          statusCode: 201,
+          body: #{params}
+        });
+
+        Twilio.#{constant}.create(#{downcase_params}, function(err, res) {
           expect(err).toEqual(null);
           for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
           api.done();
@@ -120,13 +225,13 @@ EOF
 
           it('deletes the given resource', function(done) {
             api = mock({
-              resource:   '#{opts[:resource]}',
+              resource:   '#{resource}',
               method:     'post',
               fixture:    'call_created',
               statusCode: 201,
               body: #{params}
             });
-            Twilio.Call.create({"to":"+12125551234","from":"+16465550000","url":"http://example.com/voice.twiml"}, function(err, res) {
+            Twilio.#{constant}.create(#{params}, function(err, res) {
               var instanceMock = mock({
                 chainTo:    api,
                 uri:        res.uri,
@@ -143,6 +248,7 @@ EOF
             });
           });
         });
+      });
 EOF
   end
 
@@ -151,11 +257,17 @@ EOF
 
       describe('the object it returns', function() {
         it('has setters corresponding to the mutable properties of the resource the object represents, that update the resource when .save() is called.', function(done) {
-
-          Twilio.#{resource}.create(#{downcase_params}, function(err, res) {
+          api = mock({
+            resource:   '#{resource}',
+            method:     'post',
+            fixture:    '#{opts[:individual_fixture]}',
+            statusCode: 201,
+            body: #{params}
+          });
+          Twilio.#{constant}.create(#{downcase_params}, function(err, res) {
             // Assert a POST is made to the resource URI with the given parameters
             var instanceMock = mock({
-              chainTo:    mock,
+              chainTo:    api,
               uri:        res.uri,
               method:     'post',
               fixture:    '#{opts[:individual_fixture]}',
@@ -163,7 +275,7 @@ EOF
               body: #{ Hash[opts[:mutable_attributes].map { |attr| [attr.camelize, 'foo'] }].to_json }
             });
 
-            #{opts[:mutable_attributes].map &:camelize}.forEach(function(el) { res[el] = 'foo' });
+            #{opts[:mutable_attributes].map { |s| s.camelize :lower }}.forEach(function(el) { res[el] = 'foo' });
             res.save(function() {
               api.done();
               done();
@@ -179,14 +291,14 @@ EOF
 
     describe('on unsuccessfully creating a #{resource} resource', function() {
       var api = mock({
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'post',
         fixture:    'api_error',
         statusCode: 422
       });
 
       it('should return an error object', function(done) {
-        Twilio.#{resource}.create({}, function(err, res) {
+        Twilio.#{constant}.create({}, function(err, res) {
           expect(err).toEqual(new Error(api.response.message));
           expect(res).toEqual(null);
           api.done();
@@ -206,12 +318,12 @@ output << <<EOF
       api = mock({
         accountSid: 'subaccount',
         connect:    true,
-        resource:   '#{opts[:resource]}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   '#{resource}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
         fixture:    '#{opts[:individual_fixture]}'
       });
 
-      Twilio.#{resource}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.#{constant}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount', connect: true });
@@ -220,12 +332,12 @@ output << <<EOF
     it('can use a subaccount', function(done) {
       api = mock({
         accountSid: 'subaccount',
-        resource:   '#{opts[:resource]}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   '#{resource}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
         fixture:    '#{opts[:individual_fixture]}'
       });
 
-      Twilio.#{resource}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.#{constant}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount' });
@@ -234,12 +346,12 @@ output << <<EOF
 
     it('returns an object representation of the API response', function(done) {
       api = mock({
-        resource:   '#{opts[:resource]}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   '#{resource}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
         fixture:    '#{opts[:individual_fixture]}'
       });
 
-      Twilio.#{resource}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.#{constant}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
         api.done();
@@ -255,12 +367,12 @@ output << <<EOF
       api = mock({
         accountSid: 'subaccount',
         connect:    true,
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'get',
         fixture:    '#{opts[:list_fixture]}'
       });
 
-      Twilio.#{resource}.all(function(err, res) {
+      Twilio.#{constant}.all(function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount', connect: true });
@@ -269,12 +381,12 @@ output << <<EOF
     it('can use a subaccount', function(done) {
       api = mock({
         accountSid: 'subaccount',
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'get',
         fixture:    '#{opts[:list_fixture]}'
       });
 
-      Twilio.#{resource}.all(function(err, res) {
+      Twilio.#{constant}.all(function(err, res) {
         api.done();
         done();
       }, { accountSid: 'subaccount' });
@@ -282,26 +394,26 @@ output << <<EOF
 
     it('accepts filter paramters for a more specific query', function(done) {
       api = mock({
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'get',
-        fixture:    '#{opts[:list_fixture]}'
+        fixture:    '#{opts[:list_fixture]}',
         body:       { From: '+12125551234' }
       });
 
-      Twilio.#{resource}.all(function(err, res) {
+      Twilio.#{constant}.all(function(err, res) {
         api.done();
         done()
       }, { from: '+12125551234' });
     });
 
-    it('returns informations about how many sms messages there are including an array of messages', function(done) {
+    it('returns informations about how many resources there are including an array of resource instances', function(done) {
       api = mock({
-        resource:   '#{opts[:resource]}',
+        resource:   '#{resource}',
         method:     'get',
         fixture:    '#{opts[:list_fixture]}'
       });
 
-      Twilio.#{resource}.all(function(err, res) {
+      Twilio.#{constant}.all(function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
         api.done();
@@ -316,12 +428,12 @@ if opts[:subresources]
     describe('accessing subresources', function() {
     it('can access subresources using a function with a name corresponding to the subresource name', function(done) {
       api = mock({
-        resource:   '#{opts[:resource]}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
+        resource:   '#{resource}/#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e',
         method:     'get',
         fixture:    '#{opts[:individual_fixture]}'
       });
 
-      Twilio.#{resource}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+      Twilio.#{constant}.find('#{opts[:sid_prefix]}90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         mock({
           chainTo:    api,
           uri:        res.subresourceUris[Object.keys(res.subresourceUris)[0]],
@@ -343,7 +455,10 @@ output << <<EOF
 
 EOF
 
-  File.open(File.dirname(__FILE__) + opts[:module_name], 'w+') do |f|
+  filename = opts[:module_name] || constant
+
+  File.open(File.dirname(__FILE__) + '/' + filename.underscore + '.spec.js', 'w+') do |f|
     f << output
   end
+
 end

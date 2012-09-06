@@ -5,10 +5,47 @@ Twilio.AccountSid = mock.AccountSid = "SIDneyPoiter";
 Twilio.AuthToken  = mock.AuthToken  = "secret";
 
 describe('Twilio.SMS', function() {
+  var api;
+
   describe('.create', function() {
 
-    describe('on successfully creating an SMS resource', function() {
-      var api = mock({
+    it('can use twilio connect', function(done) {
+      api = mock({
+        accountSid: 'AC0000000000000000000000000000',
+        connect:    true,
+        resource:   'SMS/Messages',
+        method:     'post',
+        fixture:    'connect_sms_created',
+        statusCode: 201,
+        body: {"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}
+      });
+
+      Twilio.SMS.create({"to":"+12125551234","from":"+16465550000","body":"OMG! Awesome!","accountSid":"AC0000000000000000000000000000","connect":true}, function(err, res) {
+        var instanceMock = mock({
+          chainTo:    api,
+          accountSid: res.accountSid,
+          connect:    true,
+          uri:        res.uri,
+          method:     'post',
+          fixture:    'connect_sms_created',
+          statusCode: 200,
+          body: {}
+        });
+
+        // twilio connect uses a different accountSID for auth. We want to ensure we
+        // use the correct sid for updating resources
+        [].forEach(function(el) { res[el] = 'foo' });
+
+        res.save(function(err, res) {
+          api.done();
+          done();
+        });
+      });
+    });
+
+    it('can use a subaccount', function(done) {
+      api = mock({
+        accountSid: 'AC0000000000000000000000000000',
         resource:   'SMS/Messages',
         method:     'post',
         fixture:    'sms_created',
@@ -16,8 +53,25 @@ describe('Twilio.SMS', function() {
         body: {"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}
       });
 
+      Twilio.SMS.create({"to":"+12125551234","from":"+16465550000","body":"OMG! Awesome!","accountSid":"AC0000000000000000000000000000"}, function(err, res) {
+        api.done();
+        done();
+      });
+    });
+
+    describe('on successfully creating a SMS/Messages resource', function() {
+      var api;
+
       it('returns an object representation of the API response', function(done) {
-        Twilio.SMS.create({"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}, function(err, res) {
+        api = mock({
+          resource:   'SMS/Messages',
+          method:     'post',
+          fixture:    'sms_created',
+          statusCode: 201,
+          body: {"To":"+12125551234","From":"+16465550000","Body":"OMG! Awesome!"}
+        });
+
+        Twilio.SMS.create({"to":"+12125551234","from":"+16465550000","body":"OMG! Awesome!"}, function(err, res) {
           expect(err).toEqual(null);
           for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
           api.done();
@@ -26,7 +80,7 @@ describe('Twilio.SMS', function() {
       });
     });
 
-    describe('on unsuccessfully creating an SMS resource', function() {
+    describe('on unsuccessfully creating a SMS/Messages resource', function() {
       var api = mock({
         resource:   'SMS/Messages',
         method:     'post',
@@ -44,15 +98,46 @@ describe('Twilio.SMS', function() {
       });
     });
   });
-
   describe('.find', function() {
-    var api = mock({
-      resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
-      method:     'get',
-      fixture:    'sms_created'
+    var api;
+
+    it('can use twilio connect', function(done) {
+      api = mock({
+        accountSid: 'subaccount',
+        connect:    true,
+        resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
+        method:     'get',
+        fixture:    'sms_created'
+      });
+
+      Twilio.SMS.find('SM90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+        api.done();
+        done();
+      }, { accountSid: 'subaccount', connect: true });
     });
 
+    it('can use a subaccount', function(done) {
+      api = mock({
+        accountSid: 'subaccount',
+        resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
+        method:     'get',
+        fixture:    'sms_created'
+      });
+
+      Twilio.SMS.find('SM90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
+        api.done();
+        done();
+      }, { accountSid: 'subaccount' });
+    });
+
+
     it('returns an object representation of the API response', function(done) {
+      api = mock({
+        resource:   'SMS/Messages/SM90c6fc909d8504d45ecdb3a3d5b3556e',
+        method:     'get',
+        fixture:    'sms_created'
+      });
+
       Twilio.SMS.find('SM90c6fc909d8504d45ecdb3a3d5b3556e', function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
@@ -65,28 +150,59 @@ describe('Twilio.SMS', function() {
   describe('.all', function() {
     var api;
 
-    beforeEach(function() {
+    it('can use twilio connect', function(done) {
+      api = mock({
+        accountSid: 'subaccount',
+        connect:    true,
+        resource:   'SMS/Messages',
+        method:     'get',
+        fixture:    'list_messages'
+      });
+
+      Twilio.SMS.all(function(err, res) {
+        api.done();
+        done();
+      }, { accountSid: 'subaccount', connect: true });
+    });
+
+    it('can use a subaccount', function(done) {
+      api = mock({
+        accountSid: 'subaccount',
+        resource:   'SMS/Messages',
+        method:     'get',
+        fixture:    'list_messages'
+      });
+
+      Twilio.SMS.all(function(err, res) {
+        api.done();
+        done();
+      }, { accountSid: 'subaccount' });
+    });
+
+    it('accepts filter paramters for a more specific query', function(done) {
+      api = mock({
+        resource:   'SMS/Messages',
+        method:     'get',
+        fixture:    'list_messages',
+        body:       { From: '+12125551234' }
+      });
+
+      Twilio.SMS.all(function(err, res) {
+        api.done();
+        done()
+      }, { from: '+12125551234' });
+    });
+
+    it('returns informations about how many resources there are including an array of resource instances', function(done) {
       api = mock({
         resource:   'SMS/Messages',
         method:     'get',
         fixture:    'list_messages'
       });
-    })
 
-    it('returns informations about how many sms messages there are including an array of messages', function(done) {
       Twilio.SMS.all(function(err, res) {
         expect(err).toEqual(null);
         for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response[prop]) }
-        api.done();
-        done()
-      });
-    })
-
-    it('returns an array of ResourceInstances in sms_messages', function(done) {
-      Twilio.SMS.all(function(err, res) {
-        res.smsMessages.forEach(function(res, i) {
-          for(var prop in res) { if(res.hasOwnProperty(prop)) expect(res[prop]).toEqual(api.response.smsMessages[i][prop]) }
-        })
         api.done();
         done()
       });
