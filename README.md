@@ -5,9 +5,7 @@ The Twilio API and TwiML for node.js
 
 ## Installation
 
-The library will be availble on npm when released
-
-<pre>npm install slow_down_fast_lane_its_not_ready_yet</pre>
+<pre>npm install twilio-js</pre>
 
 Please use the Github issue tracker to report any issues or bugs you uncover.
 
