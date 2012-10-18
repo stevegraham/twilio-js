@@ -11,7 +11,7 @@
     "twilio",
     "twiml"
   ],
-  "main": "./lib/index.js",
+  "main": "./lib/twilio.js",
   "scripts": {
     "test": "node-jasmine spec/"
   },
@@ -25,6 +25,6 @@
   "devDependencies": {
     "nock" : "0.13.3",
     "jasmine-node" : "1.0.x"
-  }
+  },
   "homepage": "http://github.com/stevegraham/twilio-js"
 }
